@@ -1,0 +1,73 @@
+@page "/fetchdata"
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@inject HttpClient Http
+
+<h1>Weather forecast</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (forecasts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp. (C)</th>
+                <th>Temp. (F)</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private WeatherForecast[] forecasts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            //Because We only inject the authorized client, this client will be try to get and use a bearer token
+            //it just keeps redirecting to Okta. The authentication is successful and once okta redirects us back to blazor, the message handler still has not token to attach to the httpClient
+            //and will send us to the Okta login again
+
+            forecasts = await Http.GetFromJsonAsync<WeatherForecast[]>("sample-data/weather.json"); //Or any other url 
+
+            //Extra: The token is retrieved from okta. Actually once we are back in the blazor app the top header which displays a user name or the 
+            //[sign in] link is displaying the user name. So.. something is being returned to blazor
+            //Also if we try to inject a token in a unauthenticated http client with the accesstokenprovider,
+            //a token is correctly assigned to the httpClient.. It just seems like the AuthMessageHandler isn't capturing the token returned from Okta after login and attaching it to the httpclient
+        }
+        catch (AccessTokenNotAvailableException e)
+        {
+            e.Redirect();
+        }
+       
+    }
+
+    public class WeatherForecast
+    {
+        public DateTime Date { get; set; }
+
+        public int TemperatureC { get; set; }
+
+        public string Summary { get; set; }
+
+        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    }
+}
